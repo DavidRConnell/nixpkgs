@@ -1,4 +1,4 @@
-{ lib, stdenv, fetchurl, makeWrapper, jre, which, gawk }:
+{ lib, stdenv, fetchurl, makeWrapper, jre, which, gawk, bashInteractive }:
 
 with lib;
 
@@ -11,18 +11,24 @@ stdenv.mkDerivation rec {
     sha256 = "1zjb6cgk2lpzx6pq1cs5fh65in6b5ccpl1cgfiglgpjc948mnhzv";
   };
 
-  nativeBuildInputs = [ makeWrapper ];
+  nativeBuildInputs = [ makeWrapper bashInteractive ];
 
   installPhase = ''
     mkdir -p "$out/share/neo4j"
     cp -R * "$out/share/neo4j"
 
     mkdir -p "$out/bin"
+    compgen_wrapper="$out/share/neo4j/bin/compgen"
+    cat << _EOF_ > $compgen_wrapper
+    "${bashInteractive}/bin/bash" -c 'compgen "\$@"'
+    _EOF_
+    chmod +x $compgen_wrapper
+
     for NEO4J_SCRIPT in neo4j neo4j-admin neo4j-import cypher-shell
     do
         makeWrapper "$out/share/neo4j/bin/$NEO4J_SCRIPT" \
             "$out/bin/$NEO4J_SCRIPT" \
-            --prefix PATH : "${lib.makeBinPath [ jre which gawk ]}" \
+            --prefix PATH : "${lib.makeBinPath [ jre which gawk ]}:$out/share/neo4j/bin/" \
             --set JAVA_HOME "${jre}"
     done
   '';
